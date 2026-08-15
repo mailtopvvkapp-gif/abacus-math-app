@@ -13,8 +13,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -25,19 +25,51 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate Android Project Scaffolding
+      - name: Scaffold Android Project & Fix MinSDK
         run: |
-          flutter create . --platforms=android --org com.pvvk.abacus
+          # Backup main.dart
+          mkdir -p /tmp/backup_lib
+          cp lib/main.dart /tmp/backup_lib/main.dart
+
+          # Cleanly generate Android scaffolding
+          rm -rf android pubspec.lock
+          flutter create --platforms=android --org com.pvvk.abacus abacus_temp
+          cp -r abacus_temp/android .
+          rm -rf abacus_temp
+
+          # Restore main.dart
+          mkdir -p lib
+          cp /tmp/backup_lib/main.dart lib/main.dart
+
+          # Configure pubspec.yaml
+          cat << 'EOF' > pubspec.yaml
+          name: abacus_app
+          description: "Trilingual Abacus App"
+          publish_to: 'none'
+          version: 1.0.0+1
+
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+
+          dependencies:
+            flutter:
+              sdk: flutter
+            flutter_tts: ^4.2.0
+
+          flutter:
+            uses-material-design: true
+          EOF
+
+          # Configure AndroidManifest for TTS services
+          sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
+
           flutter pub get
 
-      - name: Build Test APK (Debug / Direct Install)
+      - name: Build Installable APK
         run: flutter build apk --debug
 
-      - name: Build Release APK
-        run: flutter build apk --release
-
-      - name: Build Play Store App Bundle (AAB)
-        run: flutter build appbundle --release
+      - name: Build Play Store AAB
+        run: flutter build appbundle --release --no-tree-shake-icons
 
       - name: Upload Test APK
         uses: actions/upload-artifact@v4
