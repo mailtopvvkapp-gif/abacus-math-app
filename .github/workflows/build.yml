@@ -25,18 +25,12 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Automatically generates missing android/ folder and Gradle files
-      - name: Auto-generate Android Scaffolding
+      - name: Generate Android Project Scaffolding
         run: |
           flutter create . --platforms=android --org com.pvvk.abacus
           flutter pub get
 
-      # Injects Text-To-Speech queries permission into AndroidManifest.xml
-      - name: Configure Android Permissions for TTS
-        run: |
-          sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
-
-      - name: Build Installable Test APK
+      - name: Build Test APK (Debug / Direct Install)
         run: flutter build apk --debug
 
       - name: Build Release APK
@@ -45,7 +39,7 @@ jobs:
       - name: Build Play Store App Bundle (AAB)
         run: flutter build appbundle --release
 
-      - name: Upload APKs
+      - name: Upload Test APK
         uses: actions/upload-artifact@v4
         with:
           name: abacus-app-apk
@@ -56,3 +50,4 @@ jobs:
         with:
           name: abacus-playstore-aab
           path: build/app/outputs/bundle/release/*.aab
+          
