@@ -32,7 +32,7 @@ jobs:
           flutter pub add flutter_tts
           cp ../lib/main.dart lib/main.dart
           sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
-          flutter build apk --debug
+          flutter build apk --release --no-shrink
           flutter build appbundle --release --no-tree-shake-icons
           mkdir -p ../dist_apk ../dist_aab
           cp build/app/outputs/flutter-apk/*.apk ../dist_apk/
