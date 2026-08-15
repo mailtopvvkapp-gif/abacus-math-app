@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -25,41 +25,28 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Assemble & Compile Flutter App
+      - name: Build Android App
         run: |
-          # 1. Create a fresh project workspace
-          flutter create --platforms=android --org com.pvvk.abacus --project-name abacus_app app_workspace
-          cd app_workspace
-
-          # 2. Add dependencies
+          flutter create --platforms=android --org com.pvvk.abacus --project-name abacus_app app_build
+          cd app_build
           flutter pub add flutter_tts
-
-          # 3. Copy your custom main.dart from the repository
           cp ../lib/main.dart lib/main.dart
-
-          # 4. Enable Android TTS queries in AndroidManifest
           sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
-
-          # 5. Build directly installable Universal APK
           flutter build apk --debug
-
-          # 6. Build Google Play Bundle (.aab)
           flutter build appbundle --release --no-tree-shake-icons
+          mkdir -p ../dist_apk ../dist_aab
+          cp build/app/outputs/flutter-apk/*.apk ../dist_apk/
+          cp build/app/outputs/bundle/release/*.aab ../dist_aab/
 
-          # 7. Move outputs to root directory for upload
-          mkdir -p ../build_outputs/apk ../build_outputs/bundle
-          cp build/app/outputs/flutter-apk/*.apk ../build_outputs/apk/
-          cp build/app/outputs/bundle/release/*.aab ../build_outputs/bundle/
-
-      - name: Upload Installable APK (For Mobile Testing)
+      - name: Upload Test APK
         uses: actions/upload-artifact@v4
         with:
           name: abacus-app-apk
-          path: build_outputs/apk/*.apk
+          path: dist_apk/*.apk
 
-      - name: Upload Google Play Store Bundle (AAB)
+      - name: Upload Play Store AAB
         uses: actions/upload-artifact@v4
         with:
           name: abacus-playstore-aab
-          path: build_outputs/bundle/*.aab
+          path: dist_aab/*.aab
           
