@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -25,51 +25,28 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Scaffold Android Project & Fix MinSDK
+      - name: Build Project & Compile
         run: |
-          # Backup main.dart
-          mkdir -p /tmp/backup_lib
-          cp lib/main.dart /tmp/backup_lib/main.dart
+          # 1. Backup your main.dart
+          cp lib/main.dart /tmp/saved_main.dart
 
-          # Cleanly generate Android scaffolding
-          rm -rf android pubspec.lock
-          flutter create --platforms=android --org com.pvvk.abacus abacus_temp
-          cp -r abacus_temp/android .
-          rm -rf abacus_temp
+          # 2. Generate clean Android scaffolding cleanly
+          flutter create . --platforms=android --org com.pvvk.abacus --project-name abacus_app --overwrite
 
-          # Restore main.dart
-          mkdir -p lib
-          cp /tmp/backup_lib/main.dart lib/main.dart
+          # 3. Add TTS dependency using Flutter CLI (no YAML syntax errors)
+          flutter pub add flutter_tts
 
-          # Configure pubspec.yaml
-          cat << 'EOF' > pubspec.yaml
-          name: abacus_app
-          description: "Trilingual Abacus App"
-          publish_to: 'none'
-          version: 1.0.0+1
+          # 4. Restore your abacus main.dart
+          cp /tmp/saved_main.dart lib/main.dart
 
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
+          # 5. Build Installable Test APK (Debug)
+          flutter build apk --debug
 
-          dependencies:
-            flutter:
-              sdk: flutter
-            flutter_tts: ^4.2.0
+          # 6. Build Release APK
+          flutter build apk --release
 
-          flutter:
-            uses-material-design: true
-          EOF
-
-          # Configure AndroidManifest for TTS services
-          sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
-
-          flutter pub get
-
-      - name: Build Installable APK
-        run: flutter build apk --debug
-
-      - name: Build Play Store AAB
-        run: flutter build appbundle --release --no-tree-shake-icons
+          # 7. Build Play Store App Bundle (AAB)
+          flutter build appbundle --release --no-tree-shake-icons
 
       - name: Upload Test APK
         uses: actions/upload-artifact@v4
