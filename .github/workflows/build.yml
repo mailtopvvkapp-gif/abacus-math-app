@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -25,38 +25,41 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Build Project & Compile
+      - name: Assemble & Compile Flutter App
         run: |
-          # 1. Backup your main.dart
-          cp lib/main.dart /tmp/saved_main.dart
+          # 1. Create a fresh project workspace
+          flutter create --platforms=android --org com.pvvk.abacus --project-name abacus_app app_workspace
+          cd app_workspace
 
-          # 2. Generate clean Android scaffolding cleanly
-          flutter create . --platforms=android --org com.pvvk.abacus --project-name abacus_app --overwrite
-
-          # 3. Add TTS dependency using Flutter CLI (no YAML syntax errors)
+          # 2. Add dependencies
           flutter pub add flutter_tts
 
-          # 4. Restore your abacus main.dart
-          cp /tmp/saved_main.dart lib/main.dart
+          # 3. Copy your custom main.dart from the repository
+          cp ../lib/main.dart lib/main.dart
 
-          # 5. Build Installable Test APK (Debug)
+          # 4. Enable Android TTS queries in AndroidManifest
+          sed -i '/<\/manifest>/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
+
+          # 5. Build directly installable Universal APK
           flutter build apk --debug
 
-          # 6. Build Release APK
-          flutter build apk --release
-
-          # 7. Build Play Store App Bundle (AAB)
+          # 6. Build Google Play Bundle (.aab)
           flutter build appbundle --release --no-tree-shake-icons
 
-      - name: Upload Test APK
+          # 7. Move outputs to root directory for upload
+          mkdir -p ../build_outputs/apk ../build_outputs/bundle
+          cp build/app/outputs/flutter-apk/*.apk ../build_outputs/apk/
+          cp build/app/outputs/bundle/release/*.aab ../build_outputs/bundle/
+
+      - name: Upload Installable APK (For Mobile Testing)
         uses: actions/upload-artifact@v4
         with:
           name: abacus-app-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          path: build_outputs/apk/*.apk
 
-      - name: Upload Play Store AAB
+      - name: Upload Google Play Store Bundle (AAB)
         uses: actions/upload-artifact@v4
         with:
           name: abacus-playstore-aab
-          path: build/app/outputs/bundle/release/*.aab
+          path: build_outputs/bundle/*.aab
           
